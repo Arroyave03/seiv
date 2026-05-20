@@ -1,39 +1,56 @@
-import { useEffect, useMemo } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+/**
+ * DASHBOARD SCREEN
+ *
+ * Pantalla principal de "Seiv".
+ * Muestra:
+ * - Dinero disponible (dato principal)
+ * - Métricas clave
+ * - Transacciones recientes
+ * - FAB para agregar gastos
+ */
+
+import { useNavigation } from "@react-navigation/native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
-import { Card } from "@/components/ui/card";
-import { ExpenseItem } from "@/components/ui/expense-item";
 import { FloatingActionButton } from "@/components/ui/floating-action-button";
-import { MoneyDisplay } from "@/components/ui/money-display";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { SectionTitle } from "@/components/ui/section-title";
-import {
-    BottomTabInset,
-    MaxContentWidth,
-    Radius,
-    Spacing,
-} from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
+import { ExpenseModal } from "@/features/expenses/expense-modal";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    calculateDashboardMetrics,
-    useFinanceStore,
-} from "@/store/finance-store";
+import { getCategoryEmoji, getCategoryName } from "@/shared/design/categories";
+import { Shadows } from "@/shared/design/shadows";
+import { Typography } from "@/shared/design/typography";
+import { useExpenses, useSummary } from "@/shared/hooks/financial";
+import { useFinanceStore } from "@/shared/store/finance";
 import { formatMoney } from "@/utils/money";
 
 export function DashboardScreen() {
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+
   const theme = useTheme();
+  const navigation = useNavigation();
   const hydrate = useFinanceStore((state) => state.hydrate);
-  const snapshot = useFinanceStore((state) => state.snapshot);
-  const metrics = useMemo(
-    () => calculateDashboardMetrics(snapshot),
-    [snapshot],
+  const monthlyIncome = useFinanceStore((state) => state.monthlyIncome);
+
+  // Hooks financieros
+  const summary = useSummary();
+  const { expenses } = useExpenses();
+
+  const recentTransactions = useMemo(
+    () => [...expenses].reverse().slice(0, 6),
+    [expenses],
   );
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  const currentMonth = new Date().toLocaleDateString("es-CO", {
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -43,192 +60,247 @@ export function DashboardScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
+          {/* Header */}
           <View style={styles.header}>
-            <View style={styles.headerCopy}>
-              <ThemedText
-                themeColor="textSecondary"
-                type="smallBold"
-                style={styles.kicker}
-              >
-                Buen día, Samuel
-              </ThemedText>
-              <ThemedText type="title" style={styles.title}>
-                Tu dinero, claro en 1 vistazo.
-              </ThemedText>
-            </View>
-            <View style={[styles.pill, { backgroundColor: theme.accentSoft }]}>
-              <ThemedText style={[styles.pillText, { color: theme.accent }]}>
-                Abril 2026
-              </ThemedText>
-            </View>
+            <ThemedText
+              style={[styles.greeting, { color: theme.textSecondary }]}
+            >
+              Buen día
+            </ThemedText>
+            <ThemedText
+              style={[styles.monthLabel, { color: theme.textSecondary }]}
+            >
+              {currentMonth}
+            </ThemedText>
           </View>
 
-          <MoneyDisplay
-            amount={metrics.availableBalance}
-            label="Dinero disponible real"
-            emphasized
-          />
-
-          <View style={styles.grid}>
-            <Card
-              style={[
-                styles.metricCard,
-                {
-                  backgroundColor: theme.backgroundElement,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <ThemedText themeColor="textSecondary" type="small">
-                Ingreso mensual
-              </ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatMoney(snapshot.monthlyIncome)}
-              </ThemedText>
-            </Card>
-            <Card
-              style={[
-                styles.metricCard,
-                {
-                  backgroundColor: theme.backgroundElement,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <ThemedText themeColor="textSecondary" type="small">
-                Gastos fijos
-              </ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatMoney(metrics.fixedExpenseTotal)}
-              </ThemedText>
-            </Card>
-            <Card
-              style={[
-                styles.metricCard,
-                {
-                  backgroundColor: theme.backgroundElement,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <ThemedText themeColor="textSecondary" type="small">
-                Ahorro planificado
-              </ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatMoney(snapshot.savingsGoal.targetAmount)}
-              </ThemedText>
-            </Card>
-            <Card
-              style={[
-                styles.metricCard,
-                {
-                  backgroundColor: theme.backgroundElement,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <ThemedText themeColor="textSecondary" type="small">
-                Ahorro acumulado
-              </ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatMoney(snapshot.savingsGoal.savedAmount)}
-              </ThemedText>
-            </Card>
-          </View>
-
-          <Card
+          {/* Main Balance Card */}
+          <View
             style={[
-              styles.sectionCard,
-              {
-                backgroundColor: theme.backgroundElement,
-                borderColor: theme.border,
-              },
+              styles.balanceCard,
+              { backgroundColor: theme.backgroundElement },
+              Shadows.md,
             ]}
           >
-            <SectionTitle
-              title="Progreso mensual"
-              caption="Gastos fijos + ahorro + variable"
-            />
-            <View style={styles.progressBlock}>
-              <ProgressBar
-                value={metrics.monthlyUsagePercent}
-                label="Uso del presupuesto"
-              />
-              <View style={styles.progressMeta}>
-                <ThemedText themeColor="textSecondary" type="small">
-                  Te quedan {formatMoney(metrics.availableBalance)} para cerrar
-                  el mes con margen.
+            <ThemedText
+              style={[styles.balanceLabel, { color: theme.textSecondary }]}
+            >
+              Dinero disponible
+            </ThemedText>
+            <ThemedText style={[styles.balanceAmount, { color: theme.accent }]}>
+              {formatMoney(summary.availableBalance)}
+            </ThemedText>
+            <ThemedText
+              style={[styles.balanceCaption, { color: theme.textSecondary }]}
+            >
+              {summary.daysRemaining} días en el mes
+            </ThemedText>
+          </View>
+
+          {/* Quick Metrics Grid */}
+          <View style={styles.metricsGrid}>
+            <View
+              style={[
+                styles.metricSmall,
+                { backgroundColor: theme.backgroundElement },
+                Shadows.xs,
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.metricSmallLabel,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                Ingreso
+              </ThemedText>
+              <ThemedText
+                style={[styles.metricSmallValue, { color: theme.text }]}
+              >
+                {formatMoney(monthlyIncome)}
+              </ThemedText>
+            </View>
+
+            <View
+              style={[
+                styles.metricSmall,
+                { backgroundColor: theme.backgroundElement },
+                Shadows.xs,
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.metricSmallLabel,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                Gastado
+              </ThemedText>
+              <ThemedText
+                style={[styles.metricSmallValue, { color: theme.danger }]}
+              >
+                {formatMoney(summary.totalExpenses)}
+              </ThemedText>
+            </View>
+
+            <View
+              style={[
+                styles.metricSmall,
+                { backgroundColor: theme.backgroundElement },
+                Shadows.xs,
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.metricSmallLabel,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                Diario
+              </ThemedText>
+              <ThemedText
+                style={[styles.metricSmallValue, { color: theme.text }]}
+              >
+                {formatMoney(summary.dailyBudget)}
+              </ThemedText>
+            </View>
+
+            <View
+              style={[
+                styles.metricSmall,
+                { backgroundColor: theme.backgroundElement },
+                Shadows.xs,
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.metricSmallLabel,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                Uso
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.metricSmallValue,
+                  {
+                    color:
+                      summary.usagePercent > 0.8
+                        ? theme.warning
+                        : theme.success,
+                  },
+                ]}
+              >
+                {Math.round(summary.usagePercent * 100)}%
+              </ThemedText>
+            </View>
+          </View>
+
+          {/* Recent Transactions */}
+          {recentTransactions.length > 0 && (
+            <View>
+              <View style={styles.sectionHeader}>
+                <ThemedText
+                  style={[styles.sectionTitle, { color: theme.text }]}
+                >
+                  Movimientos recientes
                 </ThemedText>
-                <ThemedText type="smallBold" style={{ color: theme.success }}>
-                  {Math.round((1 - metrics.monthlyUsagePercent) * 100)}% libre
-                </ThemedText>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("explore" as never)}
+                >
+                  <ThemedText
+                    style={[styles.sectionLink, { color: theme.accent }]}
+                  >
+                    Ver todo →
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              <View
+                style={[
+                  styles.transactionsList,
+                  { backgroundColor: theme.backgroundElement },
+                  Shadows.xs,
+                ]}
+              >
+                {recentTransactions.map((expense, index) => (
+                  <View
+                    key={expense.id}
+                    style={[
+                      styles.transactionItem,
+                      index < recentTransactions.length - 1 &&
+                        styles.transactionItemBorder,
+                      { borderColor: theme.border },
+                    ]}
+                  >
+                    <View style={styles.transactionLeft}>
+                      <ThemedText style={styles.transactionEmoji}>
+                        {getCategoryEmoji(expense.categoryId)}
+                      </ThemedText>
+                      <View style={styles.transactionInfo}>
+                        <ThemedText
+                          style={[
+                            styles.transactionTitle,
+                            { color: theme.text },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {expense.title}
+                        </ThemedText>
+                        <ThemedText
+                          style={[
+                            styles.transactionCategory,
+                            { color: theme.textSecondary },
+                          ]}
+                        >
+                          {getCategoryName(expense.categoryId)}
+                        </ThemedText>
+                      </View>
+                    </View>
+
+                    <ThemedText
+                      style={[
+                        styles.transactionAmount,
+                        { color: theme.danger },
+                      ]}
+                    >
+                      -{formatMoney(expense.amount)}
+                    </ThemedText>
+                  </View>
+                ))}
               </View>
             </View>
-          </Card>
+          )}
 
-          <Card
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: theme.backgroundElement,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <SectionTitle
-              title="Gastos fijos"
-              caption="Lo que debes cubrir sí o sí cada mes"
-            />
-            <View style={styles.stack}>
-              {snapshot.fixedExpenses.map((item) => (
-                <ExpenseItem
-                  key={item.id}
-                  item={{
-                    id: item.id,
-                    title: item.title,
-                    amount: item.amount,
-                    kind: "expense",
-                    category: "fixed",
-                    dateLabel: item.dueLabel,
-                  }}
-                />
-              ))}
+          {/* Empty State */}
+          {expenses.length === 0 && (
+            <View style={styles.emptyState}>
+              <ThemedText
+                style={[styles.emptyText, { color: theme.textSecondary }]}
+              >
+                No hay movimientos aún
+              </ThemedText>
+              <ThemedText
+                style={[styles.emptySubtext, { color: theme.textSecondary }]}
+              >
+                Agrega tu primer gasto con el botón "Nuevo gasto"
+              </ThemedText>
             </View>
-          </Card>
-
-          <Card
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: theme.backgroundElement,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <SectionTitle
-              title="Movimientos recientes"
-              caption="Entrada y gasto reciente, sin ruido"
-            />
-            <View style={styles.stack}>
-              {snapshot.recentTransactions.map((item) => (
-                <ExpenseItem key={item.id} item={item} />
-              ))}
-            </View>
-          </Card>
+          )}
         </ScrollView>
 
-        <View style={styles.fabContainer}>
-          <FloatingActionButton
-            label="Registrar movimiento"
-            onPress={() => {
-              Alert.alert(
-                "Próximo paso",
-                "Aquí podrás registrar ingresos y gastos rápidamente.",
-              );
-            }}
-          />
-        </View>
+        {/* FAB para agregar gasto */}
+        <FloatingActionButton
+          onPress={() => setShowExpenseModal(true)}
+          label="Nuevo gasto"
+        />
       </SafeAreaView>
+
+      {/* Modal para agregar/editar gastos */}
+      <ExpenseModal
+        visible={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+      />
     </View>
   );
 }
@@ -244,72 +316,112 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    width: "100%",
-    maxWidth: MaxContentWidth,
-    alignSelf: "center",
-    gap: Spacing.four,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.two,
-    paddingBottom: BottomTabInset + Spacing.five,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.four,
+    gap: Spacing.five,
   },
   header: {
-    gap: Spacing.three,
+    gap: Spacing.one,
   },
-  headerCopy: {
-    gap: Spacing.two,
+  greeting: {
+    ...Typography.bodyLarge,
   },
-  kicker: {
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
+  monthLabel: {
+    ...Typography.labelSmall,
   },
-  title: {
-    fontSize: 38,
-    lineHeight: 42,
-    maxWidth: 320,
+  balanceCard: {
+    borderRadius: 16,
+    paddingVertical: Spacing.six,
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.one,
   },
-  pill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Radius.pill,
+  balanceLabel: {
+    ...Typography.labelSmall,
   },
-  pillText: {
-    fontSize: 13,
-    fontWeight: "700",
+  balanceAmount: {
+    ...Typography.displayMedium,
   },
-  grid: {
+  balanceCaption: {
+    ...Typography.labelSmall,
+  },
+  metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.three,
   },
-  metricCard: {
-    width: "48%",
-    gap: Spacing.one,
-    borderRadius: Radius.large,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  metricValue: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: "700",
-  },
-  sectionCard: {
-    gap: Spacing.three,
-    borderRadius: Radius.large,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  progressBlock: {
-    gap: Spacing.three,
-  },
-  progressMeta: {
+  metricSmall: {
+    flex: 1,
+    minWidth: "45%",
+    borderRadius: 12,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
     gap: Spacing.one,
   },
-  stack: {
+  metricSmallLabel: {
+    ...Typography.labelSmall,
+  },
+  metricSmallValue: {
+    ...Typography.labelLarge,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.two,
+  },
+  sectionTitle: {
+    ...Typography.titleSmall,
+  },
+  sectionLink: {
+    ...Typography.labelSmall,
+  },
+  transactionsList: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  transactionItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
     gap: Spacing.two,
   },
-  fabContainer: {
-    position: "absolute",
-    right: Spacing.three,
-    bottom: Spacing.five,
+  transactionItemBorder: {
+    borderBottomWidth: 1,
+  },
+  transactionLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+  transactionEmoji: {
+    fontSize: 20,
+  },
+  transactionInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  transactionTitle: {
+    ...Typography.bodySmall,
+  },
+  transactionCategory: {
+    ...Typography.labelSmall,
+  },
+  transactionAmount: {
+    ...Typography.labelSmall,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 96,
+    gap: Spacing.one,
+  },
+  emptyText: {
+    ...Typography.bodyLarge,
+  },
+  emptySubtext: {
+    ...Typography.labelSmall,
   },
 });

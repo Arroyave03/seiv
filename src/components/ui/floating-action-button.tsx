@@ -1,12 +1,12 @@
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Fonts, Radius, Spacing } from "@/constants/theme";
+import { Fonts, Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 type FloatingActionButtonProps = {
   onPress?: () => void;
-  label: string;
+  label?: string;
 };
 
 export function FloatingActionButton({
@@ -14,10 +14,12 @@ export function FloatingActionButton({
   label,
 }: FloatingActionButtonProps) {
   const theme = useTheme();
+  const displayLabel = label && label.trim() !== "+" ? label : "Nuevo gasto";
 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityLabel={displayLabel}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: theme.accent },
@@ -26,16 +28,13 @@ export function FloatingActionButton({
     >
       <View style={styles.innerRow}>
         <View
-          style={[
-            styles.iconBubble,
-            { backgroundColor: Colors.light.background },
-          ]}
+          style={[styles.iconBubble, { backgroundColor: theme.background }]}
         >
           <ThemedText style={[styles.icon, { color: theme.accent }]}>
             +
           </ThemedText>
         </View>
-        <ThemedText style={styles.label}>{label}</ThemedText>
+        <ThemedText style={styles.label}>{displayLabel}</ThemedText>
       </View>
     </Pressable>
   );
@@ -43,6 +42,9 @@ export function FloatingActionButton({
 
 const styles = StyleSheet.create({
   button: {
+    position: "absolute",
+    right: Spacing.four,
+    bottom: Spacing.four,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,

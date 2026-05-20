@@ -4,20 +4,15 @@ import {
     ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
-import React, { useEffect } from "react";
+import React from "react";
 import { useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/theme";
-import { initializeFinanceDatabase } from "@/database/finance-db";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === "dark" ? "dark" : "light";
-
-  useEffect(() => {
-    void initializeFinanceDatabase();
-  }, []);
 
   return (
     <SafeAreaProvider>
@@ -61,7 +56,8 @@ export default function RootLayout() {
             name="explore"
             options={{
               headerShown: true,
-              title: "Roadmap",
+              title: "Movimientos",
+              headerBackTitle: "Inicio",
             }}
           />
         </Stack>

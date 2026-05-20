@@ -1,84 +1,45 @@
-import { create } from "zustand";
+/**
+ * LEGACY COMPATIBILITY LAYER
+ *
+ * Este archivo re-exporta el nuevo store de shared/store/finance
+ * para mantener compatibilidad con código existente.
+ *
+ * Migración: Reemplaza imports de @/store/finance-store con @/shared/store/finance
+ */
 
-import {
-    loadDashboardSnapshot,
-    saveDashboardSnapshot,
-} from "@/database/finance-db";
-import { mockDashboardSnapshot } from "@/features/dashboard/mock-dashboard";
+export { useFinanceStore, type FinanceState } from "@/shared/store/finance";
+
+import { calculateDashboardMetrics as calcMetrics } from "@/shared/store/metrics";
 import type {
     DashboardMetrics,
     DashboardSnapshot,
     Transaction,
 } from "@/types/finance";
-import { clamp } from "@/utils/money";
 
-type FinanceState = {
-  snapshot: DashboardSnapshot;
-  isHydrated: boolean;
-  hydrate: () => Promise<void>;
-  addTransaction: (transaction: Transaction) => Promise<void>;
-};
-
+/**
+ * Función de cálculo compatible.
+ * Ahora recibe snapshot en lugar de múltiples parámetros.
+ */
 export function calculateDashboardMetrics(
-  snapshot: DashboardSnapshot,
+  snapshotOrIncome: DashboardSnapshot | number,
+  transactions?: Transaction[],
 ): DashboardMetrics {
-  const fixedExpenseTotal = snapshot.fixedExpenses.reduce(
-    (total, item) => total + item.amount,
-    0,
-  );
-  const variableExpenseTotal = snapshot.recentTransactions
-    .filter((item) => item.kind === "expense")
-    .reduce((total, item) => total + item.amount, 0);
-  const savingsProgress =
-    snapshot.savingsGoal.savedAmount / snapshot.savingsGoal.targetAmount;
-  const availableBalance =
-    snapshot.monthlyIncome -
-    fixedExpenseTotal -
-    snapshot.savingsGoal.savedAmount -
-    variableExpenseTotal;
-  const monthlyUsagePercent = clamp(
-    (fixedExpenseTotal +
-      snapshot.savingsGoal.savedAmount +
-      variableExpenseTotal) /
-      snapshot.monthlyIncome,
-    0,
-    1,
-  );
+  if (typeof snapshotOrIncome === "object" && snapshotOrIncome !== null) {
+    // Caso: snapshot (nuevo formato)
+    const snapshot = snapshotOrIncome as DashboardSnapshot;
+    return calcMetrics(snapshot.monthlyIncome, snapshot.transactions);
+  } else if (typeof snapshotOrIncome === "number" && transactions) {
+    // Caso: (monthlyIncome, transactions)
+    return calcMetrics(snapshotOrIncome, transactions);
+  }
 
   return {
-    fixedExpenseTotal,
-    variableExpenseTotal,
-    savingsProgress,
-    availableBalance,
-    monthlyUsagePercent,
+    totalIncome: 0,
+    totalExpenses: 0,
+    availableBalance: 0,
+    usagePercent: 0,
+    dailyAverageExpense: 0,
+    dailyBudget: 0,
+    daysRemaining: 0,
   };
 }
-
-export const useFinanceStore = create<FinanceState>((set, get) => ({
-  snapshot: mockDashboardSnapshot,
-  isHydrated: false,
-  hydrate: async () => {
-    const snapshot = await loadDashboardSnapshot();
-
-    set({
-      snapshot: snapshot ?? mockDashboardSnapshot,
-      isHydrated: true,
-    });
-
-    if (!snapshot) {
-      await saveDashboardSnapshot(mockDashboardSnapshot);
-    }
-  },
-  addTransaction: async (transaction) => {
-    const nextSnapshot: DashboardSnapshot = {
-      ...get().snapshot,
-      recentTransactions: [
-        transaction,
-        ...get().snapshot.recentTransactions,
-      ].slice(0, 6),
-    };
-
-    set({ snapshot: nextSnapshot });
-    await saveDashboardSnapshot(nextSnapshot);
-  },
-}));

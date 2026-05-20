@@ -1,42 +1,29 @@
-export type TransactionKind = "income" | "expense";
+import type { CategoryId } from "@/shared/design/categories";
 
-export type TransactionCategory = "fixed" | "variable" | "saving";
+export type TransactionKind = "income" | "expense";
 
 export type Transaction = {
   id: string;
   title: string;
   amount: number;
   kind: TransactionKind;
-  category: TransactionCategory;
-  dateLabel: string;
+  categoryId: CategoryId;
+  createdAt: string;
   note?: string;
-};
-
-export type FixedExpense = {
-  id: string;
-  title: string;
-  amount: number;
-  dueLabel: string;
-};
-
-export type SavingsGoal = {
-  id: string;
-  title: string;
-  targetAmount: number;
-  savedAmount: number;
 };
 
 export type DashboardSnapshot = {
   monthlyIncome: number;
-  fixedExpenses: FixedExpense[];
-  savingsGoal: SavingsGoal;
-  recentTransactions: Transaction[];
+  transactions: Transaction[];
+  updatedAt: string;
 };
 
 export type DashboardMetrics = {
-  fixedExpenseTotal: number;
-  variableExpenseTotal: number;
-  savingsProgress: number;
+  totalIncome: number;
+  totalExpenses: number;
   availableBalance: number;
-  monthlyUsagePercent: number;
+  usagePercent: number;
+  dailyAverageExpense: number;
+  dailyBudget: number;
+  daysRemaining: number;
 };
