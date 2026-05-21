@@ -1,11 +1,11 @@
 import React from "react";
 import {
-    ModalProps,
-    Platform,
-    Modal as RNModal,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  ModalProps,
+  Platform,
+  Modal as RNModal,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { Spacing } from "@/constants/theme";
@@ -27,7 +27,12 @@ export function Modal({ visible, onClose, children }: Props) {
       animationType={Platform.OS === "ios" ? "slide" : "fade"}
       onRequestClose={onClose}
     >
-      <View style={[styles.backdrop, { backgroundColor: theme.backdrop }]}>
+      <View
+        style={[
+          styles.backdrop,
+          { backgroundColor: theme.backdrop ?? "rgba(0, 0, 0, 0.35)" },
+        ]}
+      >
         <TouchableOpacity
           style={styles.fill}
           activeOpacity={1}
@@ -43,12 +48,6 @@ export function Modal({ visible, onClose, children }: Props) {
         >
           {children}
         </View>
-
-        <TouchableOpacity
-          style={styles.fill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
       </View>
     </RNModal>
   );
@@ -57,7 +56,7 @@ export function Modal({ visible, onClose, children }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-end",
     alignItems: "center",
     padding: Spacing.four,
   },
@@ -71,6 +70,8 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
     maxWidth: 720,
+    maxHeight: "90%",
+    alignSelf: "stretch",
     borderRadius: 16,
     padding: Spacing.four,
     zIndex: 10,

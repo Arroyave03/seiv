@@ -12,17 +12,8 @@
  * Diseño inspirado en Wallet, Revolut, Monzo
  */
 
-import React, { useMemo, useState } from "react";
-import {
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
 import { ThemedText } from "@/components/themed-text";
+import { FloatingActionButton } from "@/components/ui/floating-action-button";
 import { Spacing } from "@/constants/theme";
 import { ExpenseModal } from "@/features/expenses/expense-modal";
 import { useTheme } from "@/hooks/use-theme";
@@ -33,6 +24,15 @@ import { Typography } from "@/shared/design/typography";
 import { useExpenses } from "@/shared/hooks/financial";
 import type { Transaction } from "@/types/finance";
 import { formatMoney } from "@/utils/money";
+import React, { useMemo, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 /**
  * MOVEMENTS SCREEN
@@ -40,8 +40,17 @@ import { formatMoney } from "@/utils/money";
  * Vista principal de transacciones con búsqueda y filtros
  */
 export function MovementsScreen() {
+  const [isExpenseModalVisible, setIsExpenseModalVisible] = useState(false);
+  const handleOpenExpenseModal = () => {
+    setIsExpenseModalVisible(true);
+  };
+
+  const handleCloseExpenseModal = () => {
+    setIsExpenseModalVisible(false);
+  };
+
   const theme = useTheme();
-  const { expenses, byDate, delete: deleteExpense } = useExpenses();
+  const { expenses, byDate, delete: deleteExpense, restore } = useExpenses();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(
@@ -51,6 +60,35 @@ export function MovementsScreen() {
     null,
   );
   const [showModal, setShowModal] = useState(false);
+  const [undoState, setUndoState] = useState<{
+    transaction: Transaction;
+    timeoutId: ReturnType<typeof setTimeout> | null;
+  } | null>(null);
+
+  const handleDelete = (transaction: Transaction) => {
+    deleteExpense(transaction.id);
+
+    if (undoState?.timeoutId) {
+      clearTimeout(undoState.timeoutId);
+    }
+
+    const timeoutId = setTimeout(() => {
+      setUndoState(null);
+    }, 5000);
+
+    setUndoState({ transaction, timeoutId });
+  };
+
+  const handleUndo = () => {
+    if (!undoState) return;
+
+    if (undoState.timeoutId) {
+      clearTimeout(undoState.timeoutId);
+    }
+
+    restore(undoState.transaction);
+    setUndoState(null);
+  };
 
   // Filtrar por búsqueda y categoría
   const filteredExpenses = useMemo(() => {
@@ -298,7 +336,7 @@ export function MovementsScreen() {
                               </ThemedText>
                             </TouchableOpacity>
                             <TouchableOpacity
-                              onPress={() => deleteExpense(expense.id)}
+                              onPress={() => handleDelete(expense)}
                               hitSlop={8}
                             >
                               <ThemedText style={styles.actionButton}>
@@ -335,6 +373,34 @@ export function MovementsScreen() {
           setEditingExpense(null);
         }}
         editingExpense={editingExpense || undefined}
+      />
+
+      {undoState && (
+        <View
+          style={[
+            styles.undoBar,
+            {
+              backgroundColor: theme.backgroundElement,
+              borderColor: theme.border,
+            },
+            Shadows.md,
+          ]}
+        >
+          <ThemedText style={[styles.undoText, { color: theme.text }]}>
+            Movimiento eliminado
+          </ThemedText>
+          <TouchableOpacity onPress={handleUndo} hitSlop={8}>
+            <ThemedText style={[styles.undoAction, { color: theme.accent }]}>
+              Deshacer
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
+      <FloatingActionButton onPress={handleOpenExpenseModal} />
+
+      <ExpenseModal
+        visible={isExpenseModalVisible}
+        onClose={handleCloseExpenseModal}
       />
     </View>
   );
@@ -484,5 +550,26 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...Typography.bodyLarge,
+  },
+  undoBar: {
+    position: "absolute",
+    left: Spacing.four,
+    right: Spacing.four,
+    bottom: Spacing.four,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+  },
+  undoText: {
+    ...Typography.bodyMedium,
+  },
+  undoAction: {
+    ...Typography.titleSmall,
+    fontWeight: "700",
   },
 });

@@ -16,6 +16,7 @@ import {
     Platform,
     ScrollView,
     StyleSheet,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
@@ -24,7 +25,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { Input } from "@/shared/components/input";
 import { Shadows } from "@/shared/design/shadows";
 import { Typography } from "@/shared/design/typography";
 import { useFinanceStore } from "@/shared/store/finance";
@@ -67,6 +67,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
   const isValidIncome = monthlyIncome && parseFloat(monthlyIncome) > 0;
   const isValidSavings = !savingsTarget || parseFloat(savingsTarget) > 0;
+  const isDisabled = step === "income" ? !isValidIncome : false;
+  const buttonBackground = isDisabled ? theme.accentSoft : theme.accent;
+  const buttonTextColor = isDisabled ? theme.textSecondary : "#fff";
 
   const handleNext = async () => {
     if (step === "income" && isValidIncome) {
@@ -110,21 +113,31 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 {/* nota informativa eliminada por petición del usuario */}
 
                 <View style={styles.inputWrapper}>
-                  <View style={styles.inputContainer}>
+                  <View
+                    style={[
+                      styles.currencyField,
+                      {
+                        backgroundColor: theme.backgroundElement,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
                     <ThemedText
-                      style={[styles.inputCurrency, { color: theme.accent }]}
+                      style={[styles.currencySymbol, { color: theme.accent }]}
                     >
                       $
                     </ThemedText>
-                    <Input
+                    <TextInput
                       placeholder="Ej: 3.500.000"
+                      placeholderTextColor={theme.textSecondary}
                       keyboardType="number-pad"
                       value={monthlyIncome}
                       onChangeText={(t) =>
                         setMonthlyIncome(formatNumberInput(t))
                       }
-                      style={styles.largeInput}
+                      style={[styles.currencyInput, { color: theme.text }]}
                       autoFocus
+                      allowFontScaling={false}
                     />
                   </View>
                 </View>
@@ -146,21 +159,31 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 </ThemedText>
 
                 <View style={styles.inputWrapper}>
-                  <View style={styles.inputContainer}>
+                  <View
+                    style={[
+                      styles.currencyField,
+                      {
+                        backgroundColor: theme.backgroundElement,
+                        borderColor: theme.border,
+                      },
+                    ]}
+                  >
                     <ThemedText
-                      style={[styles.inputCurrency, { color: theme.accent }]}
+                      style={[styles.currencySymbol, { color: theme.accent }]}
                     >
                       $
                     </ThemedText>
-                    <Input
+                    <TextInput
                       placeholder="Ej: 500.000 (opcional)"
+                      placeholderTextColor={theme.textSecondary}
                       keyboardType="number-pad"
                       value={savingsTarget}
                       onChangeText={(t) =>
                         setSavingsTarget(formatNumberInput(t))
                       }
-                      style={styles.largeInput}
+                      style={[styles.currencyInput, { color: theme.text }]}
                       autoFocus
+                      allowFontScaling={false}
                     />
                   </View>
                 </View>
@@ -214,24 +237,18 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             <View style={styles.footer}>
               <TouchableOpacity
                 onPress={handleNext}
-                disabled={
-                  (step === "income" && !isValidIncome) ||
-                  (step === "savings" && !isValidSavings)
-                }
+                disabled={isDisabled}
                 style={[
                   styles.button,
                   {
-                    backgroundColor: theme.accent,
-                    opacity:
-                      (step === "income" && !isValidIncome) ||
-                      (step === "savings" && !isValidSavings)
-                        ? 0.5
-                        : 1,
+                    backgroundColor: buttonBackground,
                   },
                   Shadows.md,
                 ]}
               >
-                <ThemedText style={styles.buttonText}>
+                <ThemedText
+                  style={[styles.buttonText, { color: buttonTextColor }]}
+                >
                   {step === "savings" ? "Completar" : "Continuar"}
                 </ThemedText>
               </TouchableOpacity>
@@ -280,33 +297,29 @@ const styles = StyleSheet.create({
   stepCaption: {
     ...Typography.bodyMedium,
   },
-  inputSection: {
+  currencyField: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: Spacing.two,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  currency: {
-    ...Typography.headlineMedium,
-    marginBottom: Spacing.one,
-  },
-  largeInput: {
-    flex: 1,
+  currencySymbol: {
     ...Typography.headlineSmall,
+    fontWeight: "700",
+  },
+  currencyInput: {
+    flex: 1,
+    padding: 0,
+    margin: 0,
+    ...Typography.headlineSmall,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   inputWrapper: {
     marginTop: Spacing.two,
-  },
-  inputContainer: {
-    position: "relative",
-  },
-  inputCurrency: {
-    position: "absolute",
-    left: 12,
-    top: 10,
-    ...Typography.headlineSmall,
-    color: "#0E7490",
-    fontWeight: "700",
-    zIndex: 2,
   },
   preview: {
     padding: Spacing.four,

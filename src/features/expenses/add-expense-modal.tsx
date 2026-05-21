@@ -46,13 +46,24 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
 
   const addTransaction = useFinanceStore((state) => state.addTransaction);
 
+  const formatAmountInput = (text: string) => {
+    const digits = text.replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const parseAmount = (formatted: string) => {
+    if (!formatted) return 0;
+    return Number(formatted.replace(/\./g, ""));
+  };
+
   const handleAddExpense = async () => {
-    if (!amount || !selectedCategory || !description) {
+    if (!parseAmount(amount) || !selectedCategory || !description.trim()) {
       // Mostrar validación
       return;
     }
 
-    const numAmount = parseFloat(amount);
+    const numAmount = parseAmount(amount);
 
     try {
       await addTransaction(
@@ -76,7 +87,8 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
     }
   };
 
-  const isValid = amount && selectedCategory && description;
+  const isValid =
+    parseAmount(amount) > 0 && selectedCategory && description.trim();
 
   return (
     <Modal visible={visible} onClose={onClose}>
@@ -105,7 +117,7 @@ export function AddExpenseModal({ visible, onClose }: AddExpenseModalProps) {
                 placeholder="0"
                 keyboardType="decimal-pad"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={(text) => setAmount(formatAmountInput(text))}
                 style={styles.amountInput}
                 autoFocus
               />

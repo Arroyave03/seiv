@@ -3,8 +3,8 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import {
-    EXPENSE_CATEGORIES,
-    type CategoryId,
+  EXPENSE_CATEGORIES,
+  type CategoryId,
 } from "@/shared/design/categories";
 import { Typography } from "@/shared/design/typography";
 
@@ -122,6 +122,8 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 28,
+    lineHeight: 32,
+    paddingTop: 2,
   },
   categoryName: {
     ...Typography.labelSmall,

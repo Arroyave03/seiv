@@ -46,6 +46,7 @@ export type FinanceState = {
     note?: string,
   ) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  restoreTransaction: (transaction: Transaction) => Promise<void>;
   updateTransaction: (
     id: string,
     updates: Partial<Transaction>,
@@ -185,6 +186,23 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
 
     // Guardar cambios
+    const state = get();
+    await saveSnapshot(state.snapshot);
+  },
+
+  // Restaurar transacción
+  restoreTransaction: async (transaction: Transaction) => {
+    set((state) => {
+      const exists = state.transactions.some((t) => t.id === transaction.id);
+      const transactions = exists
+        ? state.transactions
+        : [transaction, ...state.transactions];
+      return {
+        transactions,
+        snapshot: { ...state.snapshot, transactions },
+      };
+    });
+
     const state = get();
     await saveSnapshot(state.snapshot);
   },

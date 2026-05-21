@@ -14,6 +14,7 @@ import {
     groupTransactionsByDate,
 } from "@/shared/financial/logic";
 import { useFinanceStore } from "@/shared/store/finance";
+import type { Transaction } from "@/types/finance";
 import { useCallback, useMemo } from "react";
 
 /**
@@ -67,6 +68,9 @@ export function useAvailableBalance(): number {
 export function useExpenses() {
   const snapshot = useFinanceStore((state) => state.snapshot);
   const deleteTransaction = useFinanceStore((state) => state.deleteTransaction);
+  const restoreTransaction = useFinanceStore(
+    (state) => state.restoreTransaction,
+  );
   const updateTransaction = useFinanceStore((state) => state.updateTransaction);
 
   const monthlyExpenses = useMemo(
@@ -94,12 +98,18 @@ export function useExpenses() {
     [updateTransaction],
   );
 
+  const restore = useCallback(
+    (transaction: Transaction) => restoreTransaction(transaction),
+    [restoreTransaction],
+  );
+
   return {
     expenses: monthlyExpenses,
     byCategory: expensesByCategory,
     byDate: expensesByDate,
     delete: delete_,
     update,
+    restore,
   };
 }
 

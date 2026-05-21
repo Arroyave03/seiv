@@ -1,56 +1,43 @@
 /**
  * EXPENSE MODAL
  *
- * Modal ultra-rápido para:
- * - Crear gasto
- * - Editar gasto
- * - Soporte CRUD completo
- *
- * UX ultra-minimalista:
- * - Monto enfocado (teclado abierto)
- * - Categorías visibles (swipe)
- * - 3 segundos máximo
- *
- * Optimizaciones:
- * - Auto-focus en monto
- * - Categoría preseleccionada
- * - Descripción es requerida
- * - Nota es opcional
+ * Versión corregida:
+ * - Usa TextInput nativo para debug
+ * - Fondo visible
+ * - Mejor validación
+ * - Logs de debug
+ * - Modal compatible
  */
 
 import React, { useEffect, useState } from "react";
+
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import { Colors, Spacing } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import { CategorySelector } from "@/shared/components/category-selector";
-import { Input } from "@/shared/components/input";
 import type { CategoryId } from "@/shared/design/categories";
 import { getCategoryEmoji } from "@/shared/design/categories";
 import { Shadows } from "@/shared/design/shadows";
 import { Typography } from "@/shared/design/typography";
 import { useFinanceStore } from "@/shared/store/finance";
 import type { Transaction } from "@/types/finance";
-import { Modal } from "../../shared/components/modal";
 
 export interface ExpenseModalProps {
   visible: boolean;
   onClose: () => void;
-  editingExpense?: Transaction; // Si existe, es modo edición
+  editingExpense?: Transaction;
 }
 
-/**
- * EXPENSE MODAL
- *
- * Componente ultra-rápido para crear/editar gastos
- */
 export function ExpenseModal({
   visible,
   onClose,
@@ -59,61 +46,99 @@ export function ExpenseModal({
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>("food");
-  const [note, setNote] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const addTransaction = useFinanceStore((state) => state.addTransaction);
+
   const updateTransaction = useFinanceStore((state) => state.updateTransaction);
 
-  // Cargar datos si estamos editando
+  /**
+   * FORMATEAR MONTO
+   * 10000 -> 10.000
+   */
+  const formatAmountInput = (text: string) => {
+    const digits = text.replace(/\D/g, "");
+
+    if (!digits) return "";
+
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  /**
+   * PARSEAR MONTO
+   * 10.000 -> 10000
+   */
+  const parseAmount = (formatted: string) => {
+    if (!formatted) return 0;
+
+    return Number(formatted.replace(/\./g, ""));
+  };
+
+  /**
+   * CARGAR DATOS EN EDICIÓN
+   */
   useEffect(() => {
     if (editingExpense && visible) {
-      setAmount(editingExpense.amount.toString());
+      setAmount(formatAmountInput(editingExpense.amount.toString()));
       setDescription(editingExpense.title);
       setSelectedCategory(editingExpense.categoryId);
-      setNote(editingExpense.note || "");
     } else if (visible) {
-      // Limpiar si es nuevo gasto
       setAmount("");
       setDescription("");
       setSelectedCategory("food");
-      setNote("");
     }
   }, [visible, editingExpense]);
 
-  const isValid = amount && selectedCategory && description;
+  const parsedAmount = parseAmount(amount);
 
+  const isValid = parsedAmount > 0 && description.trim().length > 0;
+
+  /**
+   * DEBUG
+   */
+  console.log({
+    amount,
+    parsedAmount,
+    description,
+    selectedCategory,
+    isValid,
+  });
+
+  /**
+   * GUARDAR
+   */
   const handleSave = async () => {
-    if (!isValid || isLoading) return;
+    if (!isValid || isLoading) {
+      console.log("Formulario inválido");
+      return;
+    }
 
     setIsLoading(true);
+
     try {
-      const numAmount = parseFloat(amount);
+      const numAmount = parseAmount(amount);
 
       if (editingExpense) {
-        // Editar gasto existente
         await updateTransaction(editingExpense.id, {
           title: description,
           amount: numAmount,
           categoryId: selectedCategory,
-          note: note || undefined,
         });
       } else {
-        // Crear nuevo gasto
         await addTransaction(
           description,
           numAmount,
           selectedCategory,
           "expense",
-          note || undefined,
         );
       }
 
-      // Limpiar y cerrar
+      console.log("Gasto guardado correctamente");
+
+      // Limpiar
       setAmount("");
       setDescription("");
       setSelectedCategory("food");
-      setNote("");
       onClose();
     } catch (error) {
       console.error("Error saving expense:", error);
@@ -123,172 +148,215 @@ export function ExpenseModal({
   };
 
   const title = editingExpense ? "Editar gasto" : "Nuevo gasto";
+
   const buttonText = editingExpense ? "Actualizar" : "Guardar";
 
   return (
-    <Modal visible={visible} onClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardContainer}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <ThemedText style={styles.title}>{title}</ThemedText>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <ThemedText style={styles.closeButton}>✕</ThemedText>
-            </TouchableOpacity>
-          </View>
+          <View style={styles.modalContainer}>
+            <ScrollView
+              contentContainerStyle={styles.content}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* HEADER */}
+              <View style={styles.header}>
+                <ThemedText style={styles.title}>{title}</ThemedText>
 
-          {/* Amount Input - ENFOCADO */}
-          <View style={styles.amountSection}>
-            <View style={styles.amountInputWrapper}>
-              <ThemedText style={styles.currencySymbol}>$</ThemedText>
-              <Input
-                placeholder="0"
-                keyboardType="decimal-pad"
-                value={amount}
-                onChangeText={setAmount}
-                style={styles.amountInput}
-                autoFocus
-                editable={!isLoading}
-                placeholderTextColor={Colors.light.accent + "40"}
-              />
-            </View>
-            {selectedCategory && (
-              <ThemedText style={styles.selectedCategory}>
-                {getCategoryEmoji(selectedCategory)} {selectedCategory}
-              </ThemedText>
-            )}
-          </View>
+                <TouchableOpacity onPress={onClose} hitSlop={10}>
+                  <ThemedText style={styles.closeButton}>✕</ThemedText>
+                </TouchableOpacity>
+              </View>
 
-          {/* Description Input - REQUERIDO */}
-          <View style={styles.section}>
-            <ThemedText style={styles.label}>Descripción *</ThemedText>
-            <Input
-              placeholder="Ej. Almuerzo en restaurante"
-              value={description}
-              onChangeText={setDescription}
-              placeholderTextColor={Colors.light.textSecondary}
-              editable={!isLoading}
-            />
-          </View>
+              {/* MONTO */}
+              <View style={styles.amountSection}>
+                <View style={styles.amountInputWrapper}>
+                  <ThemedText style={styles.currencySymbol}>$</ThemedText>
 
-          {/* Category Selector */}
-          <View style={styles.section}>
-            <CategorySelector
-              selectedCategoryId={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              excludeCategories={["income"]}
-            />
-          </View>
+                  <TextInput
+                    placeholder="0"
+                    keyboardType="numeric"
+                    value={amount}
+                    onChangeText={(text) => setAmount(formatAmountInput(text))}
+                    autoFocus
+                    editable={!isLoading}
+                    placeholderTextColor="#999"
+                    style={styles.amountInput}
+                  />
+                </View>
 
-          {/* Optional Note */}
-          <View style={styles.section}>
-            <ThemedText style={styles.label}>Nota (opcional)</ThemedText>
-            <Input
-              placeholder="Detalles adicionales..."
-              value={note}
-              onChangeText={setNote}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
+                <ThemedText style={styles.selectedCategory}>
+                  {getCategoryEmoji(selectedCategory)} {selectedCategory}
+                </ThemedText>
+              </View>
 
-          {/* Action Button */}
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={!isValid || isLoading}
-            style={[
-              styles.submitButton,
-              !isValid || isLoading
-                ? styles.submitButtonDisabled
-                : styles.submitButtonEnabled,
-              Shadows.md,
-            ]}
-          >
-            <ThemedText style={styles.submitButtonText}>
-              {isLoading ? "Guardando..." : buttonText}
-            </ThemedText>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              {/* DESCRIPCIÓN */}
+              <View style={styles.section}>
+                <ThemedText style={styles.label}>Descripción *</ThemedText>
+
+                <TextInput
+                  placeholder="Ej. Almuerzo"
+                  value={description}
+                  onChangeText={setDescription}
+                  editable={!isLoading}
+                  placeholderTextColor="#999"
+                  style={styles.input}
+                />
+              </View>
+
+              {/* CATEGORÍAS */}
+              <View style={styles.section}>
+                <CategorySelector
+                  selectedCategoryId={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                  excludeCategories={["income"]}
+                />
+              </View>
+
+              {/* BOTÓN */}
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={!isValid || isLoading}
+                style={[
+                  styles.submitButton,
+                  isValid
+                    ? styles.submitButtonEnabled
+                    : styles.submitButtonDisabled,
+                ]}
+              >
+                <ThemedText style={styles.submitButtonText}>
+                  {isLoading ? "Guardando..." : buttonText}
+                </ThemedText>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
   },
+
+  keyboardContainer: {
+    width: "100%",
+    justifyContent: "flex-end",
+  },
+
+  modalContainer: {
+    backgroundColor: "#0B1120",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 5,
+    minHeight: "45%",
+  },
+
   content: {
-    paddingBottom: Spacing.four,
+    paddingBottom: 40,
   },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.four,
+    marginBottom: 24,
   },
+
   title: {
     ...Typography.headlineSmall,
+    fontWeight: "700",
   },
+
   closeButton: {
     fontSize: 24,
-    color: Colors.light.textSecondary,
+    color: "#999",
   },
+
   amountSection: {
-    marginBottom: Spacing.four,
-    gap: Spacing.two,
+    marginBottom: 24,
   },
+
   amountInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: 8,
   },
+
   currencySymbol: {
-    ...Typography.headlineSmall,
-    color: Colors.light.accent,
+    fontSize: 42,
     fontWeight: "700",
+    color: Colors.light.accent,
   },
+
   amountInput: {
     flex: 1,
-    ...Typography.displaySmall,
+    fontSize: 42,
     fontWeight: "700",
     color: Colors.light.accent,
+    paddingVertical: 12,
   },
+
   selectedCategory: {
-    ...Typography.labelSmall,
-    color: Colors.light.textSecondary,
+    marginTop: 8,
+    color: "#666",
+    fontSize: 14,
   },
+
   section: {
-    marginBottom: Spacing.three,
+    marginBottom: 20,
   },
+
   label: {
-    ...Typography.titleSmall,
-    marginBottom: Spacing.one,
-    color: Colors.light.text,
+    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: "600",
   },
+
+  input: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#111",
+  },
+
   submitButton: {
-    borderRadius: 12,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
+    marginTop: 12,
+    paddingVertical: 18,
+    borderRadius: 18,
     alignItems: "center",
-    marginTop: Spacing.two,
+    ...Shadows.md,
   },
+
   submitButtonEnabled: {
     backgroundColor: Colors.light.accent,
   },
+
   submitButtonDisabled: {
-    backgroundColor: Colors.light.accent,
-    opacity: 0.5,
+    backgroundColor: "#CCC",
   },
+
   submitButtonText: {
-    ...Typography.titleMedium,
     color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
   },
 });

@@ -57,13 +57,13 @@ export const Typography = {
     letterSpacing: 0,
   },
   titleMedium: {
-    fontSize: 16,
+    fontSize: 17,
     lineHeight: 22,
     fontWeight: "600" as const,
     letterSpacing: 0,
   },
   titleSmall: {
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 20,
     fontWeight: "600" as const,
     letterSpacing: 0,
@@ -77,7 +77,7 @@ export const Typography = {
     letterSpacing: 0.2,
   },
   bodyMedium: {
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 20,
     fontWeight: "500" as const,
     letterSpacing: 0.2,
@@ -104,7 +104,7 @@ export const Typography = {
   },
   labelSmall: {
     fontSize: 10,
-    lineHeight: 12,
+    lineHeight: 13,
     fontWeight: "600" as const,
     letterSpacing: 0.5,
   },
@@ -130,4 +130,4 @@ export const FontFamily = Platform.select({
     body: "system-ui",
     mono: "monospace",
   },
-}) as const;
+});
